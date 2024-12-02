@@ -206,9 +206,9 @@
             items: bulkArray.value
         }
 
-        const ai_response = await $axios.post("/analyzer/bulk-analyze-image", body);
-        // bulkAnalysisData.value = ai_response.data.data
-        bulkAnalysisData.value = ai_response.data
+        const ai_response = await $axios.post("/analyzer/bulk-gpt-image-analyzer", body);
+        bulkAnalysisData.value = ai_response.data.data
+        // bulkAnalysisData.value = ai_response.data
 
         isBulkModalLoading.value = false
 
@@ -352,7 +352,7 @@
             </div>
         </div>
 
-        <div class="p-4" v-else>
+        <!-- <div class="p-4" v-else>
             <template v-for="(item, index) in bulkAnalysisData">
                 <div v-for="ai_analysis in item?.response">
                     <div class="mt-2 md-4 ml-1">
@@ -381,6 +381,44 @@
                         </UCard>
                     </template>
                 </div>
+                <template v-if="index+1 < bulkAnalysisData.length">
+                    <br>
+                    <UDivider label="Analysis" />
+                    <br>
+                </template>
+            </template>
+        </div> -->
+        <div class="p-4" v-else>
+            <template v-for="(item, index) in bulkAnalysisData">
+                <div class="mt-2 md-4 ml-1">
+                    <p class="pd-2"><b>Overall Comment:</b></p>
+                    <p>{{ item?.overall_comment }}</p>
+                </div>
+                <template v-for="pallet in item?.pallets">
+                    <UCard class="mt-2 md-4">
+                        <div class="md-2 pd-4">
+                            <b>Pallet Dimension: {{ pallet?.pallet_dimensions?.length }} X {{ pallet?.pallet_dimensions?.width }}</b>
+                        </div>
+                        <div class="mb-4 mt-4">
+                            <p><b>Height:</b> {{ pallet?.overall_height }} <i>(Inch)</i></p>
+                            <p><b>Weight:</b> {{ pallet?.overall_weight }} <i>(Kg)</i></p>
+                        </div>
+
+                        <UDivider />
+
+                        <template v-for="parts in pallet.product_parts">
+                            <div class="md-4 mt-4">
+                                <p><b>Part:</b> {{ parts?.part }}</p>
+                                <p><b>Description:</b> {{ parts?.description }}</p>
+                            </div>
+                            <div class="pb-4 mt-4">
+                                <p><b>Orientation:</b> {{ parts?.orientation }}</p>
+                                <p><b>Comment:</b></p>
+                                <p>{{ parts?.comment }}</p>
+                            </div>
+                        </template>
+                    </UCard>
+                </template>
                 <template v-if="index+1 < bulkAnalysisData.length">
                     <br>
                     <UDivider label="Analysis" />

@@ -55,7 +55,10 @@
     const catalogs = ref([]);
     const searchable = ref([])
     const searchResults = ref([])
-    const analysis = ref([])
+    const analysis = ref({
+        overall_comment: "",
+        pallets: []
+    })
     const defaultSearchable = ref([])
     const state = reactive({
         product_count: 0
@@ -161,7 +164,7 @@
                 "name": name
             }
 
-            const ai_response = await $axios.post("/analyzer/analyze-image", body);
+            const ai_response = await $axios.post("/analyzer/gpt-image-analyzer", body);
             analysis.value = ai_response.data.data;
 
             isModalLoading.value = false
@@ -204,7 +207,8 @@
         }
 
         const ai_response = await $axios.post("/analyzer/bulk-analyze-image", body);
-        bulkAnalysisData.value = ai_response.data.data
+        // bulkAnalysisData.value = ai_response.data.data
+        bulkAnalysisData.value = ai_response.data
 
         isBulkModalLoading.value = false
 
@@ -283,7 +287,7 @@
         </div>
 
         <div class="p-4" v-else>
-            <template v-for="ai_analysis in analysis">
+            <!-- <template v-for="ai_analysis in analysis">
                 <div class="mt-2 md-4 ml-1">
                     <p class="pd-2"><b>Overall Comment: </b>{{ ai_analysis?.overall_comment }}</p>
                 </div>
@@ -308,6 +312,35 @@
                         </template>
                     </UCard>
                 </template>
+            </template> -->
+            <div class="mt-2 md-4 ml-1">
+                <p class="pd-2"><b>Overall Comment:</b></p>
+                <p>{{ analysis?.overall_comment }}</p>
+            </div>
+            <template v-for="pallet in analysis?.pallets">
+                <UCard class="mt-2 md-4">
+                    <div class="md-2 pd-4">
+                        <b>Pallet Dimension: {{ pallet?.pallet_dimensions?.length }} X {{ pallet?.pallet_dimensions?.width }}</b>
+                    </div>
+                    <div class="mb-4 mt-4">
+                        <p><b>Height:</b> {{ pallet?.overall_height }} <i>(Inch)</i></p>
+                        <p><b>Weight:</b> {{ pallet?.overall_weight }} <i>(Kg)</i></p>
+                    </div>
+
+                    <UDivider />
+
+                    <template v-for="parts in pallet.product_parts">
+                        <div class="md-4 mt-4">
+                            <p><b>Part:</b> {{ parts?.part }}</p>
+                            <p><b>Description:</b> {{ parts?.description }}</p>
+                        </div>
+                        <div class="pb-4 mt-4">
+                            <p><b>Orientation:</b> {{ parts?.orientation }}</p>
+                            <p><b>Comment:</b></p>
+                            <p>{{ parts?.comment }}</p>
+                        </div>
+                    </template>
+                </UCard>
             </template>
         </div>
     </UModal>

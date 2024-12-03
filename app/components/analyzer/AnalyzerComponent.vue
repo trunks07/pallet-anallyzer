@@ -36,7 +36,7 @@
     import { type AxiosInstance } from 'axios' // Import AxiosInstance
     import Loader from '~/components/Loader.vue' // Assuming you have a Loader component
 
-    const isLoading = ref(false)
+    const isLoading = ref(true)
     const isModalOpen = ref(false)
     const isModalLoading = ref(false)
     const isBulkModalOpen = ref(false)
@@ -51,7 +51,6 @@
     // Declare the type of $axios to be AxiosInstance
     const { $axios } = useNuxtApp() as unknown as { $axios: AxiosInstance };
 
-    const products = ref([]);
     const catalogs = ref([]);
     const searchable = ref([])
     const searchResults = ref([])
@@ -65,39 +64,32 @@
     });
 
     const isBulk = ref(false)
+    const products = ref([])
     const bulkArray = ref([])
     const selectedArray = ref([])
     const bulkAnalysisData = ref([])
 
     const isShowLists = ref(false)
+    const loadedItems = ref([])
+
+    const isQuery = ref(false)
 
     onMounted(async () => {
         isLoading.value = true; // Set loading to true before the request
 
         try {
-            const catalog_response = await $axios.get("/catalogs/get-catalogs");
-            catalogs.value = catalog_response.data.data;
+            const product_response = await $axios.get("/catalogs/get-available-products");
 
-            const bc_product_response = await $axios.get("/catalogs/get-products");
-            products.value = bc_product_response.data.data;
+            searchable.value = product_response.data.data;
+            products.value = product_response.data.data;
 
-            let exists = []
-
-            // Access the array inside the ref with products.value
-            products.value.forEach(function(product, index) {
-                catalogs.value.forEach(function(catalog, index){
-                    if (product.number == catalog.product_id){
-                        if (exists.indexOf(product.number) == -1){
-                            searchable.value.push(product)
-                            exists.push(product.number)
-                        }
-                    }
-                })
-            });
+            searchable.value = [...searchable.value].sort((a, b) => {
+                return a.title.localeCompare(b.title);
+            })
 
             let searchResultexists = []
             searchResults.value = []
-            let limit = 99
+            let limit = 49
 
             searchable.value.forEach(function(product, index){
                 if (searchResultexists.indexOf(product.number) == -1 && searchResultexists.length <= limit){
@@ -106,9 +98,14 @@
                 }
             })
 
-            defaultSearchable.value = searchable.value 
+            defaultSearchable.value = searchResults.value 
+            loadedItems.value = searchResultexists
 
             state.product_count = searchable.value.length;
+
+            window.addEventListener('scroll', onScroll)
+
+            loadMore()
         } catch (error) {
             console.error("Error fetching catalogs:", error);
         } finally {
@@ -116,6 +113,40 @@
         }
     });
 
+    const sortedItems = computed(() => {
+        return [...searchResults.value].sort((a, b) => {
+            return a.title.localeCompare(b.title);
+        });
+    })
+
+    const loadMore = () => {
+        let limit = loadedItems.value.length + 49
+
+        isLoading.value = true
+
+        searchable.value.forEach(function(product, index){
+            if (loadedItems.value.indexOf(product.number) == -1 && loadedItems.value.length <= limit){
+                searchResults.value.push(product)
+                loadedItems.value.push(product.number)
+            }
+        })
+
+        isLoading.value = false
+    }
+
+    const onScroll = () => {
+        const scrollPosition = window.scrollY + window.innerHeight
+        const documentHeight = document.documentElement.scrollHeight
+
+        // Debugging: Log scroll position and document height
+        console.log('Scroll Position:', scrollPosition)
+        console.log('Document Height:', documentHeight)
+
+        const isAtBottom = scrollPosition >= documentHeight - 10
+        if (isAtBottom && !isLoading.value) {
+            loadMore()
+        }
+    }
 
     const handleInput = (event: Event) => {
         const target = event.target as HTMLInputElement;
@@ -142,7 +173,11 @@
         if (target.value == ""){
             searchResults.value = []
             state.product_count = searchable.value.length;
-            searchable.value = defaultSearchable.value
+            searchResults.value = defaultSearchable.value
+
+            isQuery.value = false
+        }else{
+            isQuery.value = true
         }
     };
 
@@ -251,7 +286,7 @@
         :description="`You have ${state.product_count} available.`"
         icon="i-heroicons-tag">
         
-        <div class="space-y-2">
+        <div class="space-y-2 mb-4">
             <div class="flex justify-between">
                 <UInput
                     icon="i-heroicons-magnifying-glass-20-solid"
@@ -270,34 +305,38 @@
         <div v-if="isLoading" class="loader-container">
             <Loader /> 
         </div>
-
-        <div class="space-y-2 mt-2" v-for="product in searchResults" :key="product.number">
-            <UCard class="product-card">
-                <!-- Flex container -->
-                <div class="product-card-content">
-                    <!-- Details on the left -->
-                    <div class="product-details">
-                        <p>{{ product?.description }}</p>
-                        <small>{{ product?.number }}</small>
+        <template v-if="!isLoading">
+            <div class="space-y-2 mt-2 mb-4" v-for="product in sortedItems" :key="product.number">
+                <UCard class="product-card">
+                    <!-- Flex container -->
+                    <div class="product-card-content">
+                        <!-- Details on the left -->
+                        <div class="product-details">
+                            <p>{{ product?.description }}</p>
+                            <small>{{ product?.number }}</small>
+                        </div>
+                        <!-- Button on the right -->
+                        <div class="product-action">
+                            <template v-if="!isBulk">
+                                <UButton :data-sku="product?.number" @click="clickCard" icon="i-heroicons-document-magnifying-glass"></UButton>
+                            </template>
+                            <template v-else>
+                                <UToggle
+                                    on-icon="i-heroicons-check-20-solid"
+                                    off-icon="i-heroicons-x-mark-20-solid"
+                                    :model-value="selectedArray.includes(product?.number)"
+                                    :data-sku="product?.number"
+                                    :data-title="product?.title"
+                                    @click="toggleMultiAnalisys"
+                                />
+                            </template>
+                        </div>
                     </div>
-                    <!-- Button on the right -->
-                    <div class="product-action">
-                        <template v-if="!isBulk">
-                            <UButton :data-sku="product?.number" @click="clickCard" icon="i-heroicons-document-magnifying-glass"></UButton>
-                        </template>
-                        <template v-else>
-                            <UToggle
-                                on-icon="i-heroicons-check-20-solid"
-                                off-icon="i-heroicons-x-mark-20-solid"
-                                :model-value="selectedArray.includes(product?.number)"
-                                :data-sku="product?.number"
-                                :data-title="product?.title"
-                                @click="toggleMultiAnalisys"
-                            />
-                        </template>
-                    </div>
-                </div>
-            </UCard>
+                </UCard>
+            </div>
+        </template>
+        <div v-if="!isLoading && !isQuery" class="flex items-center justify-center">
+            <UButton icon="i-heroicons-arrow-path" @click="loadMore">Load More</UButton>
         </div>
     </UDashboardCard>
 
@@ -341,7 +380,7 @@
         </div>
     </UModal>
 
-    <UModal v-model="isBulkModalOpen">
+    <UModal v-model="isBulkModalOpen" class="m-2">
         <div class="p-4 h-48" v-if="isBulkModalLoading">
             <div v-if="isBulkModalLoading" class="loader-container">
                 <Loader />
@@ -350,6 +389,7 @@
         <div class="p-4" v-else>
             <template v-for="(item, index) in bulkAnalysisData">
                 <div class="mt-2 md-4 ml-1">
+                    <p class="mb-2"><b>Name:</b> {{ item?.name }}</p>
                     <p class="pd-2"><b>Overall Comment:</b></p>
                     <p>{{ item?.overall_comment }}</p>
                 </div>

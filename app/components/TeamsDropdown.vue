@@ -69,6 +69,7 @@ const logoSrc = computed(() =>
     <UAvatar
       :src="logoSrc"
       size="config.default.size"
+      class="w-32 h-32"
     />
   </UIButton>
 </template>

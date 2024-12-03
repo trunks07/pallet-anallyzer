@@ -33,7 +33,7 @@
 <script setup lang="ts">
     import { ref, reactive, onMounted, computed } from 'vue';
     import { useNuxtApp } from '#app';
-    import { AxiosInstance } from 'axios' // Import AxiosInstance
+    import { type AxiosInstance } from 'axios' // Import AxiosInstance
     import Loader from '~/components/Loader.vue' // Assuming you have a Loader component
 
     const isLoading = ref(false)
@@ -49,7 +49,7 @@
     })
 
     // Declare the type of $axios to be AxiosInstance
-    const { $axios } = useNuxtApp() as { $axios: AxiosInstance };
+    const { $axios } = useNuxtApp() as unknown as { $axios: AxiosInstance };
 
     const products = ref([]);
     const catalogs = ref([]);
@@ -68,6 +68,8 @@
     const bulkArray = ref([])
     const selectedArray = ref([])
     const bulkAnalysisData = ref([])
+
+    const isShowLists = ref(false)
 
     onMounted(async () => {
         isLoading.value = true; // Set loading to true before the request
@@ -199,22 +201,47 @@
     }
 
     const processBulkAnalysis = async (event: Event) => {
-        isBulkModalLoading.value = true
-        isBulkModalOpen.value = true
+        if(bulkArray.value.length > 0){
+            isBulkModalLoading.value = true
+            isBulkModalOpen.value = true
 
-        let body = {
-            items: bulkArray.value
+            let body = {
+                items: bulkArray.value
+            }
+
+            const ai_response = await $axios.post("/analyzer/bulk-gpt-image-analyzer", body);
+            bulkAnalysisData.value = ai_response.data.data
+            // bulkAnalysisData.value = ai_response.data
+
+            isBulkModalLoading.value = false
+
+            bulkArray.value = []
+            selectedArray.value = []
+            isBulk.value = false
+        }else{
+            toast.add({ title: 'Select a product to analyze first!' })
         }
+    }
 
-        const ai_response = await $axios.post("/analyzer/bulk-gpt-image-analyzer", body);
-        bulkAnalysisData.value = ai_response.data.data
-        // bulkAnalysisData.value = ai_response.data
+    const showList = (event: Event) => {
+        if(bulkArray.value.length > 0){
+            isShowLists.value = true
+        }else{
+            toast.add({ title: 'Select a product to analyze first!' })
+        }
+    }
 
-        isBulkModalLoading.value = false
+    const removeArrayItem = (event: Event) => {
+        const target = event.currentTarget as HTMLElement
+        const sku = target.getAttribute('data-sku');
 
-        bulkArray.value = []
-        selectedArray.value = []
-        isBulk.value = false
+        let record = selectedArray.value.indexOf(sku)
+        selectedArray.value.splice(record, 1)
+        bulkArray.value.splice(record, 1)
+
+        if(bulkArray.value.length == 0){
+            isShowLists.value = false
+        }
     }
 </script>
 
@@ -222,7 +249,7 @@
     <UDashboardCard
         title="Products"
         :description="`You have ${state.product_count} available.`"
-        icon="i-heroicons-archive-box-20-solid">
+        icon="i-heroicons-tag">
         
         <div class="space-y-2">
             <div class="flex justify-between">
@@ -235,12 +262,7 @@
                     @input="handleInput"
                     :disabled="isLoading"
                 />
-                <div v-if="isBulk" class="text-center">
-                    <UButton icon="i-heroicons-check-20-solid" :disabled="state.product_count == 0" @click="processBulkAnalysis"> Done</UButton>
-                    &nbsp;
-                    <UButton icon="i-heroicons-x-mark-20-solid" :disabled="state.product_count == 0" @click="clickBulkAnalysis"> Cancel</UButton>
-                </div>
-                <UButton v-else icon="i-heroicons-command-line-20-solid" :disabled="state.product_count == 0" @click="clickBulkAnalysis"> Bulk Analysis</UButton>
+                <UButton v-if="!isBulk" icon="i-heroicons-folder-open" :disabled="state.product_count == 0" @click="clickBulkAnalysis"> Bulk Analysis</UButton>
             </div>
         </div>
 
@@ -261,7 +283,7 @@
                     <!-- Button on the right -->
                     <div class="product-action">
                         <template v-if="!isBulk">
-                            <UButton :data-sku="product?.number" @click="clickCard" icon="i-heroicons-command-line-20-solid"></UButton>
+                            <UButton :data-sku="product?.number" @click="clickCard" icon="i-heroicons-document-magnifying-glass"></UButton>
                         </template>
                         <template v-else>
                             <UToggle
@@ -287,32 +309,6 @@
         </div>
 
         <div class="p-4" v-else>
-            <!-- <template v-for="ai_analysis in analysis">
-                <div class="mt-2 md-4 ml-1">
-                    <p class="pd-2"><b>Overall Comment: </b>{{ ai_analysis?.overall_comment }}</p>
-                </div>
-                <template v-for="pallet in ai_analysis?.pallets">
-                    <UCard class="mt-2 md-4">
-                        <div class="md-2 pd-4">
-                            <b>Dimension: {{ pallet?.pallet_dimensions?.length }} X {{ pallet?.pallet_dimensions?.width }}</b>
-                        </div>
-                        <div class="md-4 mt-4">
-                            <p><b>Overall Height: {{ pallet?.overall_height }}</b></p>
-                            <p><b>Overall Weight: {{ pallet?.overall_weight }}</b></p>
-                        </div>
-                        <template v-for="parts in pallet.product_parts">
-                            <div class="md-4 mt-4">
-                                <p><b>Part:</b> {{ parts?.part }}</p>
-                            </div>
-                            <div class="md-4 mt-4">
-                                <p><b>Orientation:</b> {{ parts?.orientation }}</p>
-                                <p><b>Comment: </b>{{ parts?.comment }}</p>
-                                <br v-if="pallet?.product_parts.length > 1">
-                            </div>
-                        </template>
-                    </UCard>
-                </template>
-            </template> -->
             <div class="mt-2 md-4 ml-1">
                 <p class="pd-2"><b>Overall Comment:</b></p>
                 <p>{{ analysis?.overall_comment }}</p>
@@ -351,43 +347,6 @@
                 <Loader />
             </div>
         </div>
-
-        <!-- <div class="p-4" v-else>
-            <template v-for="(item, index) in bulkAnalysisData">
-                <div v-for="ai_analysis in item?.response">
-                    <div class="mt-2 md-4 ml-1">
-                        <p class="pd-2"><b>{{ item?.title }}</b></p><br>
-                        <p class="pd-2"><b>Overall Comment: </b>{{ ai_analysis?.overall_comment }}</p>
-                    </div>
-                    <template v-for="pallet in ai_analysis?.pallets">
-                        <UCard class="mt-2 md-4">
-                            <div class="md-2 pd-4">
-                                <b>Dimension: {{ pallet?.pallet_dimensions?.length }} X {{ pallet?.pallet_dimensions?.width }}</b>
-                            </div>
-                            <div class="md-4 mt-4">
-                                <p><b>Overall Height: {{ pallet?.overall_height }}</b></p>
-                                <p><b>Overall Weight: {{ pallet?.overall_weight }}</b></p>
-                            </div>
-                            <template v-for="parts in pallet.product_parts">
-                                <div class="md-4 mt-4">
-                                    <p><b>Part:</b> {{ parts?.part }}</p>
-                                </div>
-                                <div class="md-4 mt-4">
-                                    <p><b>Orientation:</b> {{ parts?.orientation }}</p>
-                                    <p><b>Comment: </b>{{ parts?.comment }}</p>
-                                    <br v-if="pallet?.product_parts.length > 1">
-                                </div>
-                            </template>
-                        </UCard>
-                    </template>
-                </div>
-                <template v-if="index+1 < bulkAnalysisData.length">
-                    <br>
-                    <UDivider label="Analysis" />
-                    <br>
-                </template>
-            </template>
-        </div> -->
         <div class="p-4" v-else>
             <template v-for="(item, index) in bulkAnalysisData">
                 <div class="mt-2 md-4 ml-1">
@@ -427,4 +386,44 @@
             </template>
         </div>
     </UModal>
+
+    <UModal v-model="isShowLists">
+        <strong class="m-4">Selected Products</strong>
+        <template v-for="bulkData in bulkArray">
+            <UCard class="m-2">
+                <div class="flex justify-between">
+                    <div>
+                        <p>{{ bulkData?.name }}</p>
+                        <small>{{ bulkData?.sku }}</small>
+                    </div>
+                    <UButton icon="i-heroicons-trash" class="w-10 h-10 flex items-center justify-center" :data-sku="bulkData?.sku" @click="removeArrayItem"></UButton>
+                </div>
+            </UCard>
+        </template>
+    </UModal>
+
+    <template v-if="isBulk">
+        <UCard class="fixed bottom-20 right-20 transform translate-x-1/2 flex flex-row items-center z-50">
+            <UButton
+                class="w-10 h-10 mb-2 flex items-center justify-center rounded-full"
+                icon="i-heroicons-clipboard-document-list"
+                @click="showList"
+            >
+            </UButton>
+            <UButton
+                class="w-10 h-10 mb-2 flex items-center justify-center rounded-full"
+                icon="i-heroicons-check-20-solid"
+                :disabled="state.product_count == 0"
+                @click="processBulkAnalysis"
+            >
+            </UButton>
+            <UButton
+                class="w-10 h-10 mb-2 flex items-center justify-center rounded-full"
+                icon="i-heroicons-x-mark-20-solid"
+                :disabled="state.product_count == 0"
+                @click="clickBulkAnalysis"
+            >
+            </UButton>
+        </UCard>
+    </template>
 </template>

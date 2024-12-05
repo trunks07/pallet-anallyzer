@@ -13,7 +13,7 @@ const links = [
       text: 'Home',
       shortcuts: ['G', 'H']
     }
-  }, 
+  },
   // {
   //   id: 'inbox',
   //   label: 'Inbox',
@@ -56,6 +56,19 @@ const links = [
   //     shortcuts: ['G', 'S']
   //   }
   // }
+]
+
+const submenuLinks = [
+  {
+    id: 'salesOrder',
+    label: 'Sales Orders',
+    icon: 'i-heroicons-document-text',
+    to: '/analyzer/sales_orders',
+    tooltip: {
+      text: 'Home',
+      shortcuts: ['G', 'H']
+    }
+  }, 
 ]
 
 const footerLinks = [
@@ -116,6 +129,8 @@ const colors = computed(() => defaultColors.value.map(color => ({ ...color, acti
         <UDashboardSidebarLinks :links="links" />
 
         <UDivider />
+
+        <UDashboardSidebarLinks :links="submenuLinks"/>
 
         <!-- <UDashboardSidebarLinks
           :links="[{ label: 'Colors', draggable: true, children: colors }]"

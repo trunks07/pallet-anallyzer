@@ -114,8 +114,9 @@
         const ai_response = await $axios.post("/analyzer/bulk-gpt-image-analyzer", analysis_body);
         line_item_analysys.value = ai_response.data.data
 
-        if(line_item_analysys.value.length > 0){
-            toast.add({ title: 'Product data not found!' })
+        if(line_item_analysys.value.length == 0){
+            isAnalysisModalOpen.value = false
+            toast.add({ title: 'Product Image not found, Please upload it in the catalog!' })
         }
 
         isAnalysing.value = false
@@ -171,9 +172,13 @@
                                     <div class="product-details">
                                         <p>{{ salesOrder?.number }}</p>
                                         <p>
-                                            <small>{{ salesOrder?.shipToName }}</small>
+                                            <small>({{ salesOrder?.customerName }})</small>
                                         </p>
-                                        <small>{{ salesOrder?.shipToAddressLine1 }}, {{ salesOrder?.shipToCity }}, {{ salesOrder?.shipToState }}, {{ salesOrder?.shipToPostCode }}</small>
+                                        <UDivider class="mb-2 mt-2" />
+                                        <p>{{ salesOrder?.shipToName }}</p>
+                                        <p>
+                                            <small>{{ salesOrder?.shipToAddressLine1 }}, {{ salesOrder?.shipToCity }}, {{ salesOrder?.shipToState }}, {{ salesOrder?.shipToPostCode }}</small>
+                                        </p>
                                     </div>
                                     <!-- Button on the right -->
                                     <div class="product-action">
